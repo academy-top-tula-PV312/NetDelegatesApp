@@ -13,6 +13,10 @@ namespace NetDelegatesApp
     delegate int IntOpers(int a, int b);
     delegate double DoubleOpers(double a, double b);
     delegate T Opers<T>(T a, T b);
+    delegate T1 DelegateMethod<out T1, in T2>(T2 varisble);
+
+    public delegate void AccountHandler(string message);
+
 
 
     class MathOpers
@@ -21,6 +25,57 @@ namespace NetDelegatesApp
         public static double Sum(double a, double b) { return a + b; }
         public static int Mult(int a, int b) { return a * b; }
         public static double Mult(double a, double b) { return a * b; }
+    }
+
+    delegate bool Filter(int item);
+
+
+    class User
+    {
+        string name;
+
+        public User(string name) => this.name = name;
+
+        public string Name
+        {
+            get => this.name;
+            set => this.name = value;
+        }
+    }
+
+    public class BankAccount
+    {
+        int amount;
+        AccountHandler? accountHandler;
+
+        public void RegisterHandler(AccountHandler handler)
+        {
+            accountHandler += handler;
+        }
+
+        public BankAccount(int amount)
+        {
+            this.amount = amount;
+            this.accountHandler = null;
+        }
+
+        public void Add(int amount)
+        {
+            this.amount += amount;
+            accountHandler?.Invoke($"На счет доблено {amount} руб. Общая сумма {this.amount}");
+        }
+
+        public void Take(int amount)
+        {
+            if (amount < this.amount)
+            {
+                this.amount -= amount;
+                accountHandler?.Invoke($"Со счета снято {amount} руб. Общая сумма {this.amount}");
+            }
+            else
+                accountHandler?.Invoke("На счете не зватает средств");
+
+        }
     }
 
     static class Examples
@@ -145,7 +200,163 @@ namespace NetDelegatesApp
             {
                 if (sign == '+') return MathOpers.Sum;
                 else if (sign == '*') return MathOpers.Mult;
+                else if (sign == '-') return (x, y) => x - y;
                 else return null;
+            }
+        }
+
+        public static void DeleagteUse()
+        {
+            BankAccount accaunt = new(1000);
+            accaunt.RegisterHandler(PrintGreen);
+
+            accaunt.Take(500);
+            accaunt.Take(400);
+
+            accaunt.RegisterHandler(PrintRed);
+
+            accaunt.Take(200);
+
+            DelegateMethod<int, double> m = new DelegateMethod<int, double>(Ceil);
+
+
+            void PrintRed(string message)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine(message);
+            }
+
+            void PrintGreen(string message)
+            {
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine(message);
+            }
+
+            int Ceil(double x)
+            {
+                return (int)x;
+            }
+        }
+
+        public static void DelegateLambda()
+        {
+            //Oper operation;
+
+            //operation = delegate (int a, int b)
+            //{
+            //    return a - b;
+            //};
+
+            //operation = (a, b) => { return a - b; };
+            //operation = (a, b) => a - b;
+            //operation = (a, b) =>
+            //{
+            //    int power = 1;
+            //    for (int i = 0; i < b; i++)
+            //        power *= a;
+            //    return power;
+            //};
+
+
+
+
+            //int result = Calc(delegate (int a, int b) 
+            //                  {
+            //                      int power = 1;
+            //                      for(int i = 0; i < b; i++)
+            //                          power *= a;
+            //                      return power;
+            //                  }, 10, 20);
+
+            //result = Calc((int a, int b) =>
+            //{
+            //    int power = 1;
+            //    for (int i = 0; i < b; i++)
+            //        power *= a;
+            //    return power;
+            //}, 
+            //10, 20);
+
+            //MessageOut mo = delegate
+            //{
+            //    Console.WriteLine("Empty anonim method");
+            //};
+
+            //mo = () => Console.WriteLine("Empty anonim method");
+
+            PrintMessage pm = (name) => Console.WriteLine($"Hello {name}");
+            pm += (name) => Console.WriteLine($"Good By {name}");
+
+            pm("Bobby");
+            Console.WriteLine();
+
+            int[] array = new int[10];
+            Random random = new();
+            for (int i = 0; i < array.Length; i++)
+                array[i] = random.Next(1, 99);
+            foreach (var item in array)
+                Console.Write($"{item} ");
+
+            int result = SumFilter(array, i => i % 2 == 0);
+            Console.WriteLine($"Sum evens items = {result}");
+
+            Console.WriteLine($"Sum items divs 5 = {SumFilter(array, i => i % 5 == 0)}");
+
+
+            int SumFilter(int[] array, Filter filter)
+            {
+                int result = 0;
+                foreach (var item in array)
+                    if (filter(item))
+                        result += item;
+                return result;
+            }
+
+
+            int Calc(Oper operation, int a, int b)
+            {
+                return operation(a, b);
+            }
+
+            int Sum(int a, int b)
+            {
+                return a + b;
+            }
+
+            //int Del(int a, int b)
+            //{
+            //    return a - b;
+            //}
+
+            int Mult(int a, int b)
+            {
+                return a * b;
+            }
+        }
+
+        public static void ActionFuncPredicate()
+        {
+            Action action = () => Console.WriteLine("Hello");
+            Action<string> helloUser = (name) => Console.WriteLine($"Hello {name}");
+            Action<string, int> helloPerson =
+                (name, age) => Console.WriteLine($"Name: {name}, Age: {age}");
+
+            helloPerson("Bobby", 32);
+
+            Func<int, int, int> oper = Sum;
+            Func<float, int, double> moper = Power;
+
+            int Sum(int a, int b)
+            {
+                return a + b;
+            }
+
+            double Power(float x, int n)
+            {
+                double result = 1;
+                for (int i = 0; i < n; i++)
+                    result *= x;
+                return result;
             }
         }
     }
