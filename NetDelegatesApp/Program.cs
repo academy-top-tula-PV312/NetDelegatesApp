@@ -1,95 +1,109 @@
 ﻿using NetDelegatesApp;
 
-// covariant
-MessageBuilder messageBuilder = WriteMessage;
-Message message = messageBuilder("Hello world");
-message.Print();
-Console.WriteLine();
 
-messageBuilder = WriteEmailMessage; // Covariant
-message = messageBuilder("Hello people");
-message.Print();
-Console.WriteLine();
-
-// contrvariant
-EmailReceiver emailBox = ReceiveEmailMessage;
-emailBox(new EmailMessage("Good by world"));
-Console.WriteLine();
-
-emailBox = ReceiveMessage;
-emailBox(new EmailMessage("Good by people"));
-Console.WriteLine();
+Account account = new(1000);
+account.Handler += AccountOperationHandler;
 
 
-// methods for covariant
-Message WriteMessage(string text) => new Message(text);
-EmailMessage WriteEmailMessage(string text) => new EmailMessage(text);
+//account.Handler += PrintRedMessage;
+//account.Put(500);
+//account.Handler -= PrintRedMessage;
+//account.Take(700);
 
-// methods for contrvariant
-void ReceiveEmailMessage(EmailMessage message) => message.Print();
-void ReceiveSmsMessage(SmsMessage message) => message.Print();
-void ReceiveMessage(Message message) => message.Print();
+//account.Handler += (message) =>
+//{
+//    Console.ForegroundColor = ConsoleColor.Green;
+//    Console.WriteLine(message);
+//};
+//account.Put(500);
 
+//account.Handler -= (message) =>
+//{
+//    Console.ForegroundColor = ConsoleColor.Green;
+//    Console.WriteLine(message);
+//};
+//account.Put(700);
 
-// method for generic covariant
-MessageBuilderT<SmsMessage> SmsMessageSender = (string text) => new SmsMessage(text);
-MessageBuilderT<Message> MessageSender = SmsMessageSender;
-Message messageSms = MessageSender("Hello Generic World");
-messageSms.Print();
-Console.WriteLine();
+//void PrintRedMessage(string message)
+//{
+//    Console.ForegroundColor = ConsoleColor.Red;
+//    Console.WriteLine(message);
+//}
 
-// method for generic contrvariant
-MessageReceiverT<Message> messageReceiver = (Message message) => message.Print();
-MessageReceiverT<SmsMessage> messageSmsReceiver = messageReceiver;
-
-messageSmsReceiver(new SmsMessage("Good by Generic people"));
-// messageSmsReceiver(new Message("Good by Generic people")); // error
-
-messageReceiver(new Message("Good by Generic Base Message"));
-messageReceiver(new EmailMessage("Good by Generic Email Message"));
-messageReceiver(new SmsMessage("Good by Generic Sms Message"));
-
-
-// both
-MessageConvert<Message, EmailMessage> toEmailConverter = (Message message) => new EmailMessage(message.Text);
-MessageConvert<SmsMessage, Message> converter = toEmailConverter;
-
-Message messageBoth = converter(new SmsMessage("Both Sms Message"));
-messageBoth.Print();
-
-
-
-// non generic delegates
-delegate Message MessageBuilder(string text); // delegate for covariant
-delegate void EmailReceiver(EmailMessage message); // delegate for contrvariant
-
-
-// generic delegates
-delegate T MessageBuilderT<out T>(string text); // generic delegate for covariant
-delegate void MessageReceiverT<in T>(T message); // generic delegate for contrvariant
-delegate TOut MessageConvert<in TIn, out TOut>(TIn message); // both
-
-
-
-class Message
+void AccountOperationHandler(object sender, AccountEventArgs e)
 {
-    public string Text { set; get; }
-
-    public Message(string text) => Text = text;
-
-    public virtual void Print() => Console.WriteLine(Text);
+    string message = e.Operation switch
+    {
+        AccountOperation.Put => $"Put {e.Amount}. Total: {e.AccountAmount}",
+        AccountOperation.Take => $"Take {e.Amount}. Total: {e.AccountAmount}",
+        AccountOperation.None => $"None. {e.Amount}. Total: {e.AccountAmount}",
+    };
+    Console.WriteLine(message);
 }
 
-class EmailMessage : Message
-{
-    public EmailMessage(string text) : base(text) { }
 
-    public override void Print() => Console.WriteLine($"Email: {Text}");
+delegate void AccountGoodHandler(object sender, AccountEventArgs e);
+
+enum AccountOperation
+{
+    Put,
+    Take,
+    None
 }
 
-class SmsMessage : Message
+class AccountEventArgs : EventArgs
 {
-    public SmsMessage(string text) : base(text) { }
+    public int Amount { get; set; }
+    
+    public int AccountAmount { get; set; }
 
-    public override void Print() => Console.WriteLine($"Sms: {Text}");
+    public AccountOperation Operation { get; set; }
+
+    public AccountEventArgs(int amount, int accountAmount, AccountOperation operation)
+    {
+        Amount = amount;
+        AccountAmount = accountAmount;
+        Operation = operation;
+    }
+}
+
+class Account
+{
+    AccountGoodHandler? handler;
+
+    public event AccountGoodHandler? Handler
+    {
+        add
+        {
+            handler += value;
+        }
+        remove
+        {
+            handler -= value;
+        }
+    }
+
+    public int Amount { get; set; }
+
+    public Account(int amount = 0) => Amount = amount;
+
+    public void Put(int amount)
+    {
+        Amount += amount;
+        //handler?.Invoke($"To account put {amount} rub. Total amount: {Amount}");
+        handler?.Invoke(this, new AccountEventArgs(amount, Amount, AccountOperation.Put));
+    }
+
+    public void Take(int amount)
+    {
+        if(Amount > amount)
+        {
+            Amount -= amount;
+            handler?.Invoke(this, new AccountEventArgs(amount, Amount, AccountOperation.Take));
+        }
+        else
+            handler?.Invoke(this, new AccountEventArgs(amount, Amount, AccountOperation.None));
+
+    }
+    
 }
